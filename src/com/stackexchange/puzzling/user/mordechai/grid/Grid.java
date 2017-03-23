@@ -145,7 +145,7 @@ public class Grid<T> implements Iterable<T> {
 		fill((x, y, old) -> data);
 	}
 
-	public void fill(Function<T, T> filler) {
+	public void replaceAll(Function<T, T> filler) {
 		fill((x, y, old) -> filler.apply(old));
 	}
 

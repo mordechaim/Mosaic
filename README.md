@@ -36,7 +36,7 @@ Creating your own Mosaic
 
 There are 3 rules that must be met when creating a Mosaic. Trying to solve them using the API (below) will result in its appropriate exception to be thrown.
 
-- **Every cell must have at-least one clue, either surrounding or in itself.**
+- **Every cell must have at-least one clue, either surrounding or in itself.**<br>
 [![no-clue][1]][1]
  
  As you can see, the 3 right cells will never be solvable.

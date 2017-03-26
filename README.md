@@ -254,7 +254,7 @@ There's an overloaded version of `putClues()`:
   
     public void putClues(ClueGenerator generator, int iterations)
 
-The process will repeat <em>n<em> times according to `iterations`. You can get the current iteration in the last argument of the clue generator.
+The process will repeat <em>n</em> times according to `iterations`. You can get the current iteration in the last argument of the clue generator.
 
 In the event that you want to write a general, full concrete implementation of `ClueGenerator` that heavily relies in the amount of iterations, you can override the default `iterations()` method. Any number greater that zero will always have precedence over the iterations parameter in `putClues()`. Zero or below will either use the `iterations` param or default to 1 if the first overload is used.
 

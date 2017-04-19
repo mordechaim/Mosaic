@@ -21,15 +21,17 @@ public class RecursionSolver extends AbstractSolveAlgorithm {
 	private boolean changed;
 
 	private boolean checkAmbiguity;
-	private int deepestRecursion;
+	private int recursions;
 	private int steps;
-	private int backTracks;
+	private int backtracks;
 
 	public RecursionSolver(Mosaic mosaic) {
-		this(mosaic, null);
+		this(mosaic, null, 0);
 	}
 
-	private RecursionSolver(Mosaic mosaic, List<Coordinates> coordinates) {
+	private int level; // for debug purposes
+
+	private RecursionSolver(Mosaic mosaic, List<Coordinates> coordinates, int level) {
 		super(mosaic, coordinates == null);
 
 		clues = new ArrayList<>();
@@ -116,11 +118,18 @@ public class RecursionSolver extends AbstractSolveAlgorithm {
 				throw e;
 			} catch (IllegalClueStateException e) {
 				brutes.remove(0);
-				backTracks++;
+				backtracks++;
+
+				if (brutes.isEmpty() && getState() != SUCCEEDED) {
+					throw e;
+				}
 			}
 		} else {
 
 			if (clues.isEmpty()) {
+				if (getMosaic().getGrid().count(clue -> clue.getFill() == EMPTY) > 0)
+					throw new Error();
+
 				setState(SUCCEEDED);
 				return;
 			}
@@ -150,17 +159,18 @@ public class RecursionSolver extends AbstractSolveAlgorithm {
 
 			int filledAmt = surrounding.count(cl -> cl.getFill() == FILLED);
 			int xAmt = surrounding.count(cl -> cl.getFill() == X);
+			int emptyAmt = surrounding.count(cl -> cl.getFill() == EMPTY);
 
 			if (filledAmt > clue.getClue()) {
 				setState(FAILED);
 				throw new ContradictionException(getMosaic(), c.x, c.y);
 			}
-			if (9 - xAmt < clue.getClue()) {
+
+			if (surrounding.getLength() - xAmt < clue.getClue()) {
 				setState(FAILED);
 				throw new ContradictionException(getMosaic(), c.x, c.y);
 			}
 
-			int emptyAmt = surrounding.count(cl -> cl.getFill() == EMPTY);
 			if (emptyAmt + filledAmt == clue.getClue()) {
 				for (Clue cl : surrounding) {
 					if (cl.getFill() == EMPTY) {
@@ -210,12 +220,12 @@ public class RecursionSolver extends AbstractSolveAlgorithm {
 				Grid<Clue> sub = m.getSurroundingCells(bc.x, bc.y);
 				sub.get(i).setFill(FILLED);
 
-				RecursionSolver rs = new RecursionSolver(m, clues);
+				RecursionSolver rs = new RecursionSolver(m, clues, level + 1);
 				rs.checkAmbiguity(isCheckingAmbiguity());
 				rs.onSucceed(algorithm -> {
 					if (getState() == SUCCEEDED) {
-						int xDiff = 0;
-						int yDiff = 0;
+						int xDiff = -1;
+						int yDiff = -1;
 
 						GridIterator<Clue> gi = getMosaic().getGrid().iterator();
 						while (gi.hasNext()) {
@@ -226,23 +236,27 @@ public class RecursionSolver extends AbstractSolveAlgorithm {
 							}
 						}
 
-						throw new AmbigiousException(getMosaic(), rs.getMosaic(), xDiff, yDiff);
+						if (xDiff >= 0)
+							throw new AmbigiousException(getMosaic(), rs.getMosaic(), xDiff, yDiff);
 					}
 					getMosaic().getGrid().fill((x, y, old) -> rs.getMosaic().getGrid().get(x, y));
 
 					// Report updating
-					int deepest = rs.deepestRecursion + 1;
-					deepestRecursion = Math.max(deepestRecursion, deepest);
+					recursions = rs.recursions + 1;
 					steps += rs.steps;
-					backTracks += rs.backTracks;
+					backtracks += rs.backtracks;
 
 					setState(SUCCEEDED);
+				});
+
+				rs.onFail(algrithm -> {
+					steps += rs.steps;
+					backtracks += rs.backtracks;
 				});
 
 				brutes.add(rs);
 			}
 		}
-
 	}
 
 	public boolean isRunnable() {
@@ -256,12 +270,14 @@ public class RecursionSolver extends AbstractSolveAlgorithm {
 	}
 
 	public void checkAmbiguity(boolean check) {
+		State state = getState();
+		if (state != INITIALIZING && state != READY)
+			throw new IllegalStateException("State must be INITIALIZING or READY to toggle ambiguity check.");
+
 		if (checkAmbiguity == check)
 			return;
 
 		checkAmbiguity = check;
-		for (RecursionSolver a : brutes)
-			a.checkAmbiguity(check);
 	}
 
 	public boolean isCheckingAmbiguity() {
@@ -299,7 +315,7 @@ public class RecursionSolver extends AbstractSolveAlgorithm {
 
 	@Override
 	public RecursionReport getReport() {
-		return new RecursionReport(elapsed(), steps, deepestRecursion, backTracks);
+		return new RecursionReport(elapsed(), steps, recursions, backtracks);
 	}
 
 	static class Coordinates {

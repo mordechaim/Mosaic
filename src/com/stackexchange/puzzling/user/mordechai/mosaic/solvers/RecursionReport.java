@@ -4,14 +4,14 @@ public class RecursionReport implements Report {
 
 	private final long elapsed;
 	private final int steps;
-	private final int deepestRecursion;
-	private final int backTracks;
+	private final int recursions;
+	private final int backtracks;
 
-	public RecursionReport(long elapsed, int steps, int deepestRecursion, int backTracks) {
+	public RecursionReport(long elapsed, int steps, int recursions, int backtracks) {
 		this.elapsed = elapsed;
 		this.steps = steps;
-		this.deepestRecursion = deepestRecursion;
-		this.backTracks = backTracks;
+		this.recursions = recursions;
+		this.backtracks = backtracks;
 	}
 
 	@Override
@@ -24,12 +24,12 @@ public class RecursionReport implements Report {
 		return steps;
 	}
 
-	public int getDeepestRecursion() {
-		return deepestRecursion;
+	public int getRecursions() {
+		return recursions;
 	}
 
-	public int getBackTracks() {
-		return backTracks;
+	public int getBacktracks() {
+		return backtracks;
 	}
 
 	@Override
@@ -45,12 +45,12 @@ public class RecursionReport implements Report {
 		b.append(getSteps());
 		b.append("\n");
 		
-		b.append("Deepest Recursion Level: ");
-		b.append(getDeepestRecursion());
+		b.append("Recursions: ");
+		b.append(getRecursions());
 		b.append("\n");
 		
-		b.append("BackTrack Amount: ");
-		b.append(getBackTracks());
+		b.append("Backtracks: ");
+		b.append(getBacktracks());
 		b.append("\n");
 		
 		return b.toString();

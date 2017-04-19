@@ -281,4 +281,8 @@ public class Grid<T> implements Iterable<T> {
 
 		return builder.toString();
 	}
+	
+	public String toGridString(Function<T, String> generator) {
+		return toGridString(generator, false);
+	}
 }

@@ -34,9 +34,9 @@ Here are some links to understand the rules of the puzzle &mdash; all from Conce
 Creating your own Mosaic
 -
 
-There are 3 rules that must be met when creating a Mosaic. Trying to solve them using the API (below) will result in its appropriate exception to be thrown.
+There are 3 rules that must be met when creating a Mosaic. Trying to solve them using the API will result in its appropriate exception to be thrown.
 
-- **Every cell must have at-least one clue, either surrounding or in itself.**
+- **Every cell must have at-least one clue, either surrounding or in itself.**<br>
 [![no-clue][1]][1]
  
  As you can see, the 3 right cells will never be solvable.
@@ -254,7 +254,7 @@ There's an overloaded version of `putClues()`:
   
     public void putClues(ClueGenerator generator, int iterations)
 
-The process will repeat $n$ times according to `iterations`. You can get the current iteration in the last argument of the clue generator.
+The process will repeat <em>n</em> times according to `iterations`. You can get the current iteration in the last argument of the clue generator.
 
 In the event that you want to write a general, full concrete implementation of `ClueGenerator` that heavily relies in the amount of iterations, you can override the default `iterations()` method. Any number greater that zero will always have precedence over the iterations parameter in `putClues()`. Zero or below will either use the `iterations` param or default to 1 if the first overload is used.
 

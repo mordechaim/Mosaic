@@ -9,13 +9,13 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintWriter;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.function.Consumer;
 import java.util.prefs.Preferences;
 
 import javax.imageio.ImageIO;
@@ -28,16 +28,11 @@ import com.stackexchange.puzzling.user.mordechai.mosaic.fx.MosaicPane;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.Group;
-import javafx.scene.Node;
-import javafx.scene.Scene;
 import javafx.scene.SnapshotParameters;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
-import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
-import javafx.scene.control.DialogPane;
 import javafx.scene.control.Label;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.TextFormatter;
@@ -47,12 +42,9 @@ import javafx.scene.image.PixelReader;
 import javafx.scene.image.PixelWriter;
 import javafx.scene.image.WritableImage;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 import javafx.stage.FileChooser.ExtensionFilter;
-import javafx.stage.Modality;
-import javafx.stage.Stage;
 
 public class Loader { // FIXME use threads for loading and set off-canvas-processing
 
@@ -147,15 +139,12 @@ public class Loader { // FIXME use threads for loading and set off-canvas-proces
 			boolean bool = prefs.getBoolean(DONT_SHOW, false);
 
 			if (!bool) {
-				Alert alert = Util.createAlertWithOptOut(AlertType.CONFIRMATION, "Confirm Load",
+				return showedAlready = Util.createAlertWithOptOut(AlertType.CONFIRMATION, "Confirm Load",
 						"Do you want to load the new data?", "Current work will be lost, you may want to export first",
 						"Do not ask again", param -> {
 							prefs.putBoolean(DONT_SHOW, param);
 
-						}, ButtonType.YES, ButtonType.NO);
-
-				return showedAlready = alert.showAndWait().filter(t -> t == ButtonType.YES).isPresent();
-
+						}, ButtonType.YES, ButtonType.NO).filter(t -> t == ButtonType.YES).isPresent();
 			}
 
 		}
@@ -174,9 +163,9 @@ public class Loader { // FIXME use threads for loading and set off-canvas-proces
 		String format = "*" + name.substring(name.lastIndexOf("."));
 
 		if (imageFormats.contains(format)) {
-			loadImage(file.toURI());
+			loadImage(file);
 		} else if (textualFormats.contains(format) && isTextualFile(file)) {
-			loadString(file.toURI());
+			loadString(file);
 		} else {
 			Alert error = new Alert(AlertType.ERROR, "Could not load " + file.getName());
 			error.showAndWait();
@@ -194,12 +183,6 @@ public class Loader { // FIXME use threads for loading and set off-canvas-proces
 	}
 
 	public static void newMosaic() {
-		Stage dialog = new Stage();
-		dialog.initModality(Modality.APPLICATION_MODAL);
-		dialog.setTitle("Create New Mosaic...");
-		dialog.setAlwaysOnTop(true);
-		dialog.setResizable(false);
-
 		Spinner<Integer> width = new Spinner<>(1, MosaicPane.MAX_SIZE, 10);
 		Spinner<Integer> height = new Spinner<>(1, MosaicPane.MAX_SIZE, 10);
 		width.setEditable(true);
@@ -215,7 +198,7 @@ public class Loader { // FIXME use threads for loading and set off-canvas-proces
 		height.getEditor().setTextFormatter(heightFmt);
 		height.getValueFactory().valueProperty().bindBidirectional(heightFmt.valueProperty());
 
-		Label widthLabel = new Label("Width:");
+		Label widthLabel = new Label(" Width:");
 		Label heightLabel = new Label("Height:");
 
 		HBox widthBox = new HBox(10);
@@ -227,47 +210,18 @@ public class Loader { // FIXME use threads for loading and set off-canvas-proces
 		widthBox.getChildren().addAll(widthLabel, width);
 		heightBox.getChildren().addAll(heightLabel, height);
 
-		Button ok = new Button("Ok");
-		Button cancel = new Button("Cancel");
+		VBox boxes = new VBox(widthBox, heightBox);
+		boxes.setSpacing(10);
+		boxes.setPadding(new Insets(15));
 
-		ok.setOnAction(evt -> {
+		Util.createDialog(boxes, "Create New Mosaic...", () -> {
 			Mosaic m = new Mosaic(width.getValue(), height.getValue());
 			MosaicPane mp = new MosaicPane(m, true);
 			global.setMosaicPane(mp);
-
-			dialog.close();
-		});
-
-		cancel.setOnAction(evt -> dialog.close());
-
-		ok.setDefaultButton(true);
-		cancel.setCancelButton(true);
-
-		HBox buttons = new HBox(ok, cancel);
-		buttons.setAlignment(Pos.CENTER);
-		buttons.setSpacing(10);
-
-		VBox vbox = new VBox(10);
-		vbox.setAlignment(Pos.CENTER);
-
-		vbox.getChildren().addAll(widthBox, heightBox, buttons);
-		vbox.setPadding(new Insets(15));
-
-		Scene scene = new Scene(new StackPane(vbox));
-		dialog.setScene(scene);
-		dialog.show();
-
-		ok.requestFocus();
+		}, ButtonType.OK, ButtonType.CANCEL);
 	}
 
 	public static void saveString(File file) {
-
-		Stage dialog = new Stage();
-		dialog.initModality(Modality.APPLICATION_MODAL);
-		dialog.setTitle("Export Attributes...");
-		dialog.setAlwaysOnTop(true);
-		dialog.setResizable(false);
-
 		Text text = new Text("Select the attributes to be saved");
 
 		CheckBox fill = new CheckBox("Fill");
@@ -282,10 +236,13 @@ public class Loader { // FIXME use threads for loading and set off-canvas-proces
 		box.setPadding(new Insets(10));
 		box.setAlignment(Pos.CENTER_LEFT);
 
-		Button ok = new Button("Ok");
-		Button cancel = new Button("Cancel");
+		VBox vbox = new VBox(10);
+		vbox.setAlignment(Pos.CENTER);
 
-		ok.setOnAction(evt -> {
+		vbox.getChildren().addAll(text, box);
+		vbox.setPadding(new Insets(15));
+
+		Util.createDialog(vbox, "Export Attributes...", () -> {
 			try (PrintWriter out = new PrintWriter(new FileWriter(file))) {
 				out.print(global.getMosaicPane().getMosaic().toCSV(fill.isSelected(), clue.isSelected(),
 						image.isSelected()));
@@ -295,29 +252,7 @@ public class Loader { // FIXME use threads for loading and set off-canvas-proces
 				alert.setTitle("Error");
 				alert.showAndWait();
 			}
-			dialog.close();
-		});
-
-		cancel.setOnAction(evt -> dialog.close());
-
-		ok.setDefaultButton(true);
-		cancel.setCancelButton(true);
-
-		HBox buttons = new HBox(ok, cancel);
-		buttons.setAlignment(Pos.CENTER);
-		buttons.setSpacing(10);
-
-		VBox vbox = new VBox(10);
-		vbox.setAlignment(Pos.CENTER);
-
-		vbox.getChildren().addAll(text, box, buttons);
-		vbox.setPadding(new Insets(15));
-
-		Scene scene = new Scene(new StackPane(vbox));
-		dialog.setScene(scene);
-		dialog.show();
-
-		ok.requestFocus();
+		}, ButtonType.OK, ButtonType.CANCEL);
 
 	}
 
@@ -335,10 +270,22 @@ public class Loader { // FIXME use threads for loading and set off-canvas-proces
 		}
 	}
 
-	public static void loadString(URI uri) {
+	public static void loadString(File f) {
 		Mosaic mosaic = null;
 		try {
-			mosaic = Mosaic.loadString(uri);
+			mosaic = Mosaic.loadString(f);
+		} catch (IOException e) {
+			e.printStackTrace();
+			return;
+		}
+
+		global.setMosaicPane(new MosaicPane(mosaic, true));
+	}
+	
+	public static void loadString(InputStream in) {
+		Mosaic mosaic = null;
+		try {
+			mosaic = Mosaic.loadString(in);
 		} catch (IOException e) {
 			e.printStackTrace();
 			return;
@@ -353,12 +300,12 @@ public class Loader { // FIXME use threads for loading and set off-canvas-proces
 		global.setMosaicPane(new MosaicPane(mosaic, true));
 	}
 
-	public static void loadImage(URI uri) {
-		Image image = new Image(uri.toString());
+	public static void loadImage(File f) {
+		Image image = new Image(f.getAbsolutePath());
 
 		if (image.isError()) {
 			Alert alert = new Alert(AlertType.ERROR);
-			alert.setHeaderText("Cannot open image " + new File(uri).getName());
+			alert.setHeaderText("Cannot open image " + f.getName());
 			alert.setTitle("Error");
 			alert.showAndWait();
 			return;
@@ -366,14 +313,18 @@ public class Loader { // FIXME use threads for loading and set off-canvas-proces
 
 		loadImage(image);
 	}
+	
+	public static void loadImage(InputStream in) {
+		Image image = new Image(in);
+
+		if (image.isError()) {
+			throw new RuntimeException(image.getException());
+		}
+
+		loadImage(image);
+	}
 
 	public static void loadImage(Image image) {
-		Stage dialog = new Stage();
-		dialog.initModality(Modality.APPLICATION_MODAL);
-		dialog.setTitle("Import Image...");
-		dialog.setAlwaysOnTop(true);
-		dialog.setResizable(false);
-
 		Spinner<Integer> width = new Spinner<>(1, 100, Math.min(100, (int) image.getWidth()));
 		Spinner<Integer> height = new Spinner<>(1, 100, Math.min(100, (int) image.getHeight()));
 		width.setEditable(true);
@@ -399,7 +350,7 @@ public class Loader { // FIXME use threads for loading and set off-canvas-proces
 		height.getValueFactory().valueProperty().addListener((obs, ov, nv) -> imageView
 				.setImage(resample(blackAndWhite(image, width.getValue(), height.getValue()), 10)));
 
-		Label widthLabel = new Label("Width:");
+		Label widthLabel = new Label(" Width:");
 		Label heightLabel = new Label("Height:");
 
 		HBox widthBox = new HBox(10);
@@ -411,40 +362,20 @@ public class Loader { // FIXME use threads for loading and set off-canvas-proces
 		widthBox.getChildren().addAll(widthLabel, width);
 		heightBox.getChildren().addAll(heightLabel, height);
 
-		Button ok = new Button("Ok");
-		Button cancel = new Button("Cancel");
+		VBox vbox = new VBox(10);
+		vbox.setAlignment(Pos.CENTER);
 
-		ok.setOnAction(evt -> {
-			Mosaic m = null;
-			m = Mosaic.loadScaledImage(SwingFXUtils.fromFXImage(image, null), width.getValue(), height.getValue());
+		vbox.getChildren().addAll(imageView, widthBox, heightBox);
+		vbox.setPadding(new Insets(15));
+
+		Util.createDialog(vbox, "Import Image...", () -> {
+			Mosaic m = Mosaic.loadScaledImage(SwingFXUtils.fromFXImage(image, null), width.getValue(),
+					height.getValue());
 			MosaicPane mp = new MosaicPane(m, true);
 			mp.setEditor(EditorType.PIXEL);
 
 			global.setMosaicPane(mp);
-
-			dialog.close();
-		});
-
-		cancel.setOnAction(evt -> dialog.close());
-
-		ok.setDefaultButton(true);
-		cancel.setCancelButton(true);
-
-		HBox buttons = new HBox(ok, cancel);
-		buttons.setAlignment(Pos.CENTER);
-		buttons.setSpacing(10);
-
-		VBox vbox = new VBox(10);
-		vbox.setAlignment(Pos.CENTER);
-
-		vbox.getChildren().addAll(imageView, widthBox, heightBox, buttons);
-		vbox.setPadding(new Insets(15));
-
-		Scene scene = new Scene(new StackPane(vbox));
-		dialog.setScene(scene);
-		dialog.show();
-
-		ok.requestFocus();
+		}, ButtonType.OK, ButtonType.CANCEL);
 	}
 
 	private static Image blackAndWhite(Image image, int width, int height) {

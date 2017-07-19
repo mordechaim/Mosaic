@@ -8,7 +8,6 @@ import com.stackexchange.puzzling.user.mordechai.mosaic.Mosaic;
 import javafx.beans.binding.Bindings;
 import javafx.concurrent.Service;
 import javafx.concurrent.Task;
-import javafx.concurrent.Worker;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
@@ -105,13 +104,14 @@ public class GeneratePane extends VBox {
 							updateMessage(workDone + "/" + job);
 						}
 
-						if (isCancelled()) {
-							updateMessage("Cancelled");
-						}
-
 						updateProgress(0, 0);
 
 						return null;
+					}
+
+					@Override
+					protected void cancelled() {
+						updateMessage("Cancelled...");
 					}
 				};
 
@@ -119,7 +119,7 @@ public class GeneratePane extends VBox {
 			}
 
 		};
-
+		
 		progress.progressProperty().bind(generator.progressProperty());
 		generator.valueProperty().addListener((obs, ov, nv) -> {
 			if (ov != null) {

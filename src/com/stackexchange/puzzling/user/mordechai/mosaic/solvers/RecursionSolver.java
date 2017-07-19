@@ -1,8 +1,10 @@
 package com.stackexchange.puzzling.user.mordechai.mosaic.solvers;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.function.Consumer;
 
 import com.stackexchange.puzzling.user.mordechai.grid.Grid;
 import com.stackexchange.puzzling.user.mordechai.grid.GridIterator;
@@ -16,37 +18,53 @@ public class RecursionSolver extends AbstractSolveAlgorithm {
 
 	private ListIterator<Coordinates> iterator;
 	private List<Coordinates> clues;
-	private List<RecursionSolver> brutes;
+	private List<Coordinates> loopbackClues;
+	private List<RecursionSolver> children;
+	private List<RecursionSolver> childrenUnmodifiable;
 
-	private boolean changed;
+	private Coordinates currentPoint;
+	private Coordinates recursionPoint;
 
+	private boolean useAdvancedLogic;
 	private boolean checkAmbiguity;
+	private boolean loopbackEnhacement = true;
+	private int level;
+
+	private RecursionSolver parent;
+	private Consumer<RecursionSolver> recursionHandler;
+
 	private int recursions;
 	private int steps;
 	private int backtracks;
 
 	public RecursionSolver(Mosaic mosaic) {
-		this(mosaic, null, 0);
+		this(mosaic, null, null, 0);
 	}
 
-	private int level; // for debug purposes
-
-	private RecursionSolver(Mosaic mosaic, List<Coordinates> coordinates, int level) {
+	private RecursionSolver(Mosaic mosaic, List<Coordinates> coordinates, RecursionSolver parent, int level) {
 		super(mosaic, coordinates == null);
 
+		useAdvancedLogic = true;
+
 		clues = new ArrayList<>();
-		brutes = new ArrayList<>();
+		loopbackClues = new ArrayList<>();
+		children = new ArrayList<>();
 
 		if (coordinates != null) {
-			clues.addAll(coordinates);
+			for (Coordinates coords : coordinates) {
+				if (!coords.solved)
+					clues.add(new Coordinates(coords.x, coords.y));
+			}
 		} else {
-			GridIterator<Clue> i = getMosaic().getGrid().iterator();
+			GridIterator<Clue> i = getMosaic().iterator();
 			i.forEachRemaining(clue -> {
 				if (clue.getClue() >= 0)
-					clues.add(new Coordinates(i.getX(), i.getY()));
+					clues.add(new Coordinates(i.x(), i.y()));
 			});
 		}
 
+		this.parent = parent;
+		this.level = level;
 		setState(READY);
 	}
 
@@ -83,13 +101,21 @@ public class RecursionSolver extends AbstractSolveAlgorithm {
 	public void cancel() {
 		setState(CANCELLED);
 		clues.clear();
-		brutes.clear();
+		children.clear();
 	}
 
 	private void run() {
 		do {
 			takeStep(false);
-		} while (getState() == RUNNING || (inValidationProcess()));
+		} while (getState() == RUNNING);
+	}
+
+	public void onRecursion(Consumer<RecursionSolver> handler) {
+		this.recursionHandler = handler;
+	}
+
+	public Consumer<RecursionSolver> getOnRecursion() {
+		return recursionHandler;
 	}
 
 	private void takeStep(boolean pauseOnDone) {
@@ -98,37 +124,33 @@ public class RecursionSolver extends AbstractSolveAlgorithm {
 		if (elapsed() == 0)
 			startTimer();
 
-		if (!brutes.isEmpty()) {
+		if (!isLeaf()) {
 			try {
-				RecursionSolver rs;
-				while (!brutes.isEmpty()) {
-					rs = brutes.get(0);
-					if (rs.isTerminated()) {
-						// only happens when checking ambiguity
-						brutes.remove(0);
-					} else {
-						rs.takeStep(pauseOnDone);
-						break;
-					}
-				}
+				children.get(0).takeStep(pauseOnDone);
 			} catch (AmbigiousException e) {
-				setState(FAILED);
-
+				if (getState() == RUNNING) // parents
+					setState(FAILED);
 				// Unwinds recursion
 				throw e;
 			} catch (IllegalClueStateException e) {
-				brutes.remove(0);
 				backtracks++;
 
-				if (brutes.isEmpty() && getState() != SUCCEEDED) {
-					throw e;
+				// last child
+				if (isSelfActive()) {
+
+					// succeed if in validation
+					if (gridComplete()) {
+						setState(SUCCEEDED);
+						return;
+					}
+
+					setState(FAILED);
+					throw e; // last child threw, throw parent
 				}
 			}
 		} else {
-
-			if (clues.isEmpty()) {
-				if (getMosaic().getGrid().count(clue -> clue.getFill() == EMPTY) > 0)
-					throw new Error();
+			if (gridComplete()) {
+				assert getMosaic().count(clue -> clue.getFill() == EMPTY) == 0;
 
 				setState(SUCCEEDED);
 				return;
@@ -137,63 +159,116 @@ public class RecursionSolver extends AbstractSolveAlgorithm {
 			if (iterator == null)
 				startIteration();
 
-			if (iterator.hasNext()) {
+			// FIXME swap around so step does both at once
+			if (iterator.hasNext() || !loopbackClues.isEmpty()) {
 				takeStepImpl();
-			} else
+			} else {
 				endIteration();
+			}
 		}
 
-		if (pauseOnDone && !isTerminated())
+		if (pauseOnDone && isRunnable())
 			pause();
 	}
 
+	private boolean changed;
+
 	private void takeStepImpl() {
 		steps++;
+
 		boolean localChanged = false;
+		Coordinates c = null;
 
-		if (iterator.hasNext()) {
-			Coordinates c = iterator.next();
-
-			Clue clue = getMosaic().getGrid().get(c.x, c.y);
-			Grid<Clue> surrounding = getMosaic().getSurroundingCells(c.x, c.y);
-
-			int filledAmt = surrounding.count(cl -> cl.getFill() == FILLED);
-			int xAmt = surrounding.count(cl -> cl.getFill() == X);
-			int emptyAmt = surrounding.count(cl -> cl.getFill() == EMPTY);
-
-			if (filledAmt > clue.getClue()) {
-				setState(FAILED);
-				throw new ContradictionException(getMosaic(), c.x, c.y);
-			}
-
-			if (surrounding.getLength() - xAmt < clue.getClue()) {
-				setState(FAILED);
-				throw new ContradictionException(getMosaic(), c.x, c.y);
-			}
-
-			if (emptyAmt + filledAmt == clue.getClue()) {
-				for (Clue cl : surrounding) {
-					if (cl.getFill() == EMPTY) {
-						cl.setFill(FILLED);
-						localChanged = true;
-					}
-				}
-			}
-
-			if (filledAmt == clue.getClue()) {
-				for (Clue cl : surrounding) {
-					if (cl.getFill() == EMPTY) {
-						cl.setFill(X);
-						localChanged = true;
-					}
-				}
-			}
-
-			if (surrounding.count(cl -> cl.getFill() == EMPTY) == 0) {
-				iterator.remove();
+		while (!loopbackClues.isEmpty()) {
+			Coordinates coords = loopbackClues.remove(0);
+			if (!coords.solved) {
+				c = coords;
+				break;
 			}
 
 		}
+
+		if (c == null) {
+			while (iterator.hasNext()) {
+				Coordinates coords = iterator.next();
+				if (!coords.solved) {
+					c = coords;
+					break;
+				}
+				iterator.remove();
+			}
+		}
+
+		if (c == null)
+			return;
+
+		currentPoint = c;
+		Grid<Clue> surrounding = getMosaic().getSurroundingCells(c.x, c.y);
+
+		Clue clue = getMosaic().get(c.x, c.y);
+		if (clue.getClue() < 0) {
+			iterator.remove();
+			return;
+		}
+
+		int filledAmt = surrounding.count(cl -> cl.getFill() == FILLED);
+		int xAmt = surrounding.count(cl -> cl.getFill() == X);
+		int emptyAmt = surrounding.count(cl -> cl.getFill() == EMPTY);
+
+		if (filledAmt > clue.getClue()) {
+			setState(FAILED);
+			throw new ContradictionException(getMosaic(), c.x, c.y);
+		}
+
+		if (surrounding.length() - xAmt < clue.getClue()) {
+			setState(FAILED);
+			throw new ContradictionException(getMosaic(), c.x, c.y);
+		}
+
+		if (emptyAmt + filledAmt == clue.getClue()) {
+			for (Clue cl : surrounding) {
+				if (cl.getFill() == EMPTY) {
+					cl.setFill(FILLED);
+					localChanged = true;
+				}
+			}
+		}
+
+		if (filledAmt == clue.getClue()) {
+			for (Clue cl : surrounding) {
+				if (cl.getFill() == EMPTY) {
+					cl.setFill(X);
+					localChanged = true;
+				}
+			}
+		}
+
+		c.solved = surrounding.count(cl -> cl.getFill() == EMPTY) == 0;
+
+		if (localChanged && isUsingLoopbackEnhancment()) {
+			int previousCount = 0;
+			// loops back 2 or 3 rows, then adds all that are max 2 cells
+			// while reseting
+			// iterator to previous position
+			while (iterator.hasPrevious()) {
+				Coordinates p = iterator.previous();
+				previousCount++;
+				if ((p.y == c.y - 2 && p.x < c.x - 2) || p.y < c.y - 2) {
+					break;
+				}
+			}
+			while (previousCount > 0) {
+				Coordinates n = iterator.next();
+				previousCount--;
+				if (n != c && n.x >= c.x - 2 && n.x <= c.x + 2 && n.y >= c.y - 2 && n.y <= c.y + 2) {
+					loopbackClues.add(n);
+				}
+
+				if (n.x >= c.x && n.y >= c.y)
+					break;
+			}
+		}
+
 		changed |= localChanged;
 	}
 
@@ -204,78 +279,114 @@ public class RecursionSolver extends AbstractSolveAlgorithm {
 
 	private void endIteration() {
 		iterator = null;
-		if (!changed && !clues.isEmpty()) {
+		if ((!changed || isUsingLoopbackEnhancment()) && !gridComplete()) {
 
-			Coordinates bc = clues.get(0);
+			Coordinates bc = null;
+
+			while (!clues.isEmpty()) {
+				bc = clues.get(0);
+				if (!bc.solved)
+					break;
+
+				clues.remove(0);
+			}
+
+			if(gridComplete()) { // may happen on above removal
+				return;
+			}
+
+			recursionPoint = bc;
+
+			int currentClue = getMosaic().get(bc.x, bc.y).getClue();
+
+			if (!isUsingAdvancedLogic())
+				throw new RequiresAdvancedLogicException(getMosaic(), bc.x, bc.y);
+
 			Grid<Clue> subgrid = getMosaic().getSurroundingCells(bc.x, bc.y);
 			List<Integer> empties = new ArrayList<>();
 
-			for (int i = 0; i < subgrid.getLength(); i++) {
-				if (subgrid.get(i).getFill() == EMPTY)
+			int filled = subgrid.count(clue -> clue.getFill() == FILLED);
+			for (int i = 0; i < subgrid.length(); i++) {
+				if (subgrid.get(i).getFill() == EMPTY) {
 					empties.add(i);
+				}
 			}
 
-			for (int i : empties) {
+			for (int i = 0; i <= empties.size() - (currentClue - filled); i++) {
+
 				Mosaic m = new Mosaic(getMosaic());
 				Grid<Clue> sub = m.getSurroundingCells(bc.x, bc.y);
-				sub.get(i).setFill(FILLED);
 
-				RecursionSolver rs = new RecursionSolver(m, clues, level + 1);
+				// x out all preceding already taken care in preceding children
+				for (int j = 0; j < i; j++) {
+					sub.get(empties.get(j)).setFill(X);
+				}
+
+				if (empties.isEmpty()) // may happen on loop-back
+					return;
+
+				sub.get(empties.get(i)).setFill(FILLED);
+
+				RecursionSolver rs = new RecursionSolver(m, clues, this, level + 1);
 				rs.checkAmbiguity(isCheckingAmbiguity());
-				rs.onSucceed(algorithm -> {
-					if (getState() == SUCCEEDED) {
-						int xDiff = -1;
-						int yDiff = -1;
+				rs.addStateListener(SUCCEEDED, algorithm -> {
 
-						GridIterator<Clue> gi = getMosaic().getGrid().iterator();
-						while (gi.hasNext()) {
-							if (gi.next().getFill() != rs.getMosaic().getGrid().get(gi.getX(), gi.getY()).getFill()) {
-								xDiff = gi.getX();
-								yDiff = gi.getY();
-								break;
-							}
-						}
-
-						if (xDiff >= 0)
-							throw new AmbigiousException(getMosaic(), rs.getMosaic(), xDiff, yDiff);
+					if (inValidationProcess()) {
+						setState(FAILED);
+						throw new AmbigiousException(getMosaic(), rs.getMosaic(), recursionPoint.x, recursionPoint.y);
 					}
-					getMosaic().getGrid().fill((x, y, old) -> rs.getMosaic().getGrid().get(x, y));
 
-					// Report updating
-					recursions = rs.recursions + 1;
-					steps += rs.steps;
-					backtracks += rs.backtracks;
+					for (int x = 0; x < getMosaic().length(); x++) {
+						getMosaic().get(x).setFill(rs.getMosaic().get(x).getFill());
+					}
 
-					setState(SUCCEEDED);
+					rs.getMosaic().grid().forEach((data, x, y) -> getMosaic().get(x, y).setFill(data.getFill()));
+
+					children.remove(rs);
+					clues.clear(); // mark gridComplete
+					iterator = null; // may not reflect clearance
+
+					if (!inValidationProcess()) {
+						children.clear();
+						setState(SUCCEEDED);
+
+						// Report updating
+						recursions = rs.recursions + 1;
+						steps += rs.steps;
+						backtracks += rs.backtracks;
+					}
 				});
 
-				rs.onFail(algrithm -> {
+				rs.addStateListener(FAILED, algrithm -> {
+					children.remove(rs);
 					steps += rs.steps;
 					backtracks += rs.backtracks;
 				});
 
-				brutes.add(rs);
+				children.add(rs);
+			}
+
+			Consumer<RecursionSolver> recursionHandler = getOnRecursion();
+			if (recursionHandler != null) {
+				recursionHandler.accept(this);
 			}
 		}
 	}
 
 	public boolean isRunnable() {
 		State s = getState();
-		return s == READY || s == RUNNING || s == PAUSED || inValidationProcess();
+		return s == READY || s == RUNNING || s == PAUSED;
 	}
 
 	public boolean isTerminated() {
 		State s = getState();
-		return s == CANCELLED || s == FAILED || (s == SUCCEEDED && !inValidationProcess());
+		return s == CANCELLED || s == FAILED || s == SUCCEEDED;
 	}
 
 	public void checkAmbiguity(boolean check) {
 		State state = getState();
 		if (state != INITIALIZING && state != READY)
 			throw new IllegalStateException("State must be INITIALIZING or READY to toggle ambiguity check.");
-
-		if (checkAmbiguity == check)
-			return;
 
 		checkAmbiguity = check;
 	}
@@ -284,16 +395,103 @@ public class RecursionSolver extends AbstractSolveAlgorithm {
 		return checkAmbiguity;
 	}
 
+	public void useAdvancedLogic(boolean logic) {
+		State state = getState();
+		if (state != INITIALIZING && state != READY)
+			throw new IllegalStateException("State must be INITIALIZING or READY to toggle advanced logic usage.");
+
+		useAdvancedLogic = logic;
+	}
+
+	public boolean isUsingAdvancedLogic() {
+		return useAdvancedLogic;
+	}
+
+	public void useLoopbackEnhancement(boolean loopback) {
+		State state = getState();
+		if (state != INITIALIZING && state != READY)
+			throw new IllegalStateException(
+					"State must be INITIALIZING or READY to toggle loopback enhancement usage.");
+
+		loopbackEnhacement = loopback;
+	}
+
+	public boolean isUsingLoopbackEnhancment() {
+		return loopbackEnhacement;
+	}
+
+	public RecursionSolver getActive() {
+		if (isTerminated())
+			return null;
+		if (isLeaf())
+			return this;
+
+		RecursionSolver s = getActiveChild();
+		while (!s.isLeaf()) {
+			s = s.getActiveChild();
+		}
+
+		return s;
+	}
+
+	public List<RecursionSolver> getChildren() {
+		if (childrenUnmodifiable == null)
+			childrenUnmodifiable = Collections.unmodifiableList(children);
+
+		return childrenUnmodifiable;
+	}
+
+	public RecursionSolver getActiveChild() {
+		if (isTerminated())
+			return null;
+		if (isLeaf())
+			return this;
+
+		return children.get(0);
+	}
+
+	public boolean isSelfActive() {
+		return children.isEmpty() && isRunnable();
+	}
+
+	public RecursionSolver getParent() {
+		return parent;
+	}
+
+	public RecursionSolver getRoot() {
+		if (parent == null)
+			return this;
+
+		return parent.getRoot();
+	}
+
+	public boolean isRoot() {
+		return getParent() == null;
+	}
+
+	public boolean isLeaf() {
+		return children.isEmpty();
+	}
+
+	public int recursionLevel() {
+		return level;
+	}
+
+	// FIXME to be removed or redesigned
+	public Coordinates currentPoint() {
+		if (isSelfActive())
+			return currentPoint;
+
+		return getActive() != null ? getActive().currentPoint : null;
+	}
+
+	public Coordinates recursionPoint() {
+		return recursionPoint;
+	}
+
 	@Override
 	protected void setState(State s) {
 		State old = getState();
-
-		if (inValidationProcess()) {
-			if (s == FAILED) // only legal value on validation
-				super.setState(s);
-
-			return;
-		}
 
 		if (old == CANCELLED)
 			throw new IllegalStateException("Can't resume after cancel().");
@@ -310,19 +508,27 @@ public class RecursionSolver extends AbstractSolveAlgorithm {
 	}
 
 	private boolean inValidationProcess() {
-		return getState() == SUCCEEDED && (isCheckingAmbiguity() && !brutes.isEmpty());
+		return gridComplete() && isCheckingAmbiguity() && !isLeaf() && isRunnable();
+	}
+
+	private boolean gridComplete() {
+		return clues.isEmpty();
 	}
 
 	@Override
 	public RecursionReport getReport() {
-		return new RecursionReport(elapsed(), steps, recursions, backtracks);
+		throw new UnsupportedOperationException();
+		// return new RecursionReport(elapsed(), steps, recursions, backtracks);
 	}
 
-	static class Coordinates {
-		final int x;
-		final int y;
+	public static class Coordinates {
+		public final int x;
+		public final int y;
 
-		Coordinates(int x, int y) {
+		// internally mutable
+		private boolean solved;
+
+		public Coordinates(int x, int y) {
 			this.x = x;
 			this.y = y;
 		}
@@ -332,4 +538,24 @@ public class RecursionSolver extends AbstractSolveAlgorithm {
 		}
 	}
 
+	public static RecursionSolver commonParent(RecursionSolver rs1, RecursionSolver rs2) {
+		if (rs1.level > rs2.level)
+			return commonParentImpl(rs2, rs1);
+		return commonParentImpl(rs1, rs2);
+	}
+
+	public static RecursionSolver commonParentImpl(RecursionSolver min, RecursionSolver max) {
+		while (max.level > min.level)
+			max = max.getParent();
+
+		do {
+			if (max == min)
+				return min;
+
+			min = min.getParent();
+			max = max.getParent();
+		} while (min != null);
+
+		return min;
+	}
 }

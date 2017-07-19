@@ -1,9 +1,5 @@
 package com.stackexchange.puzzling.user.mordechai.grid;
 
-import java.util.Iterator;
-import java.util.NoSuchElementException;
-import java.util.function.Function;
-
 public class Matrix<T> {
 
 	private int width;
@@ -16,7 +12,7 @@ public class Matrix<T> {
 		this.width = width;
 		this.height = height;
 
-		cells = (Cell<T>[][]) new Cell[width][height];
+		cells = new Cell[width][height];
 		for (int i = 0; i < cells.length; i++) {
 			for (int j = 0; j < cells[i].length; j++) {
 				cells[i][j] = new Cell<T>(i, j);

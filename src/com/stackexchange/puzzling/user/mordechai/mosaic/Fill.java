@@ -2,7 +2,7 @@ package com.stackexchange.puzzling.user.mordechai.mosaic;
 
 public enum Fill {
 
-	FILLED("*"), EMPTY(" "), X("x");
+	FILLED("#"), EMPTY(" "), X("X");
 	
 	private String string;
 	

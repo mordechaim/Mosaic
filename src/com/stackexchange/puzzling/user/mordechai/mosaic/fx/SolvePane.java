@@ -2,10 +2,10 @@ package com.stackexchange.puzzling.user.mordechai.mosaic.fx;
 
 import static com.stackexchange.puzzling.user.mordechai.mosaic.solvers.StandardState.PAUSED;
 import static com.stackexchange.puzzling.user.mordechai.mosaic.solvers.StandardState.RUNNING;
-
 import java.util.function.Consumer;
 
 import com.stackexchange.puzzling.user.mordechai.mosaic.Clue;
+import com.stackexchange.puzzling.user.mordechai.mosaic.Fill;
 import com.stackexchange.puzzling.user.mordechai.mosaic.Mosaic;
 import com.stackexchange.puzzling.user.mordechai.mosaic.solvers.IllegalClueStateException;
 import com.stackexchange.puzzling.user.mordechai.mosaic.solvers.RecursionSolver;
@@ -53,6 +53,7 @@ public class SolvePane extends VBox {
 
 	private CheckBox checkAmbiguity;
 	private CheckBox loopbackEnhacement;
+	private CheckBox clearOnStart;
 
 	private Label exceptionMessage;
 
@@ -78,7 +79,7 @@ public class SolvePane extends VBox {
 		delay.setTooltip(new Tooltip("Solving speed"));
 
 		runner = new Timeline(new KeyFrame(Duration.millis(60), evt -> step()));
-		runner.setCycleCount(Timeline.INDEFINITE);
+		runner.setCycleCount(Animation.INDEFINITE);
 		runner.rateProperty().bind(delay.valueProperty());
 
 		solver.addListener((obs, ov, nv) -> {
@@ -94,8 +95,9 @@ public class SolvePane extends VBox {
 		completing = new SimpleBooleanProperty(false);
 
 		global.mosaicPaneProperty().addListener((obs, ov, nv) -> {
-			if (nv == null)
+			if (nv == null) {
 				cancel();
+			}
 		});
 		global.autoSolvingProperty().bind(runner.statusProperty().isEqualTo(Animation.Status.RUNNING).or(completing));
 		global.solverStateProperty().bind(state.stateProperty());
@@ -168,7 +170,12 @@ public class SolvePane extends VBox {
 		loopbackEnhacement.setTooltip(new Tooltip(
 				"Speeds up solving by looping\n" + "back on every change instead of\n" + "linear iterations"));
 
-		VBox checks = new VBox(checkAmbiguity, loopbackEnhacement);
+		clearOnStart = new CheckBox("Clear On Start");
+		clearOnStart.setSelected(true);
+		clearOnStart.disableProperty().bind(checkAmbiguity.disabledProperty());
+		clearOnStart.setTooltip(new Tooltip("Clear mosaic fill\nwhen starting to solve"));
+
+		VBox checks = new VBox(checkAmbiguity, loopbackEnhacement, clearOnStart);
 
 		Pane spacer1 = new Pane();
 		HBox.setHgrow(spacer1, Priority.ALWAYS);
@@ -256,6 +263,11 @@ public class SolvePane extends VBox {
 						});
 					}
 				});
+
+				if (clearOnStart.isSelected()) {
+					global.getMosaicPane().getMosaic().forEach(clue -> clue.setFill(Fill.EMPTY));
+				}
+				
 				solver.set(s);
 				s.start();
 
@@ -305,6 +317,10 @@ public class SolvePane extends VBox {
 			if (rs.isTerminated())
 				runner.stop();
 		});
+
+		if (clearOnStart.isSelected()) {
+			global.getMosaicPane().getMosaic().forEach(clue -> clue.setFill(Fill.EMPTY));
+		}
 	}
 
 	public void removeHighlighting() {

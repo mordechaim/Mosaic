@@ -7,9 +7,9 @@ import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.net.URL;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
@@ -21,7 +21,6 @@ import java.util.function.Predicate;
 import javax.imageio.ImageIO;
 
 import com.stackexchange.puzzling.user.mordechai.grid.Grid;
-import com.stackexchange.puzzling.user.mordechai.grid.CellFunction;
 import com.stackexchange.puzzling.user.mordechai.grid.GridIterator;
 import com.stackexchange.puzzling.user.mordechai.mosaic.solvers.IllegalClueStateException;
 import com.stackexchange.puzzling.user.mordechai.mosaic.solvers.RecursionSolver;
@@ -50,12 +49,12 @@ public class Mosaic implements Iterable<Clue> {
 		return loadScaledImage(image, image.getWidth(null), image.getHeight(null));
 	}
 
-	public static Mosaic loadImage(URL url) throws IOException {
-		return loadImage(ImageIO.read(url));
+	public static Mosaic loadImage(InputStream in) throws IOException {
+		return loadImage(ImageIO.read(in));
 	}
 
-	public static Mosaic loadScaledImage(URL url, int width, int height) throws IOException {
-		return loadScaledImage(ImageIO.read(url), width, height);
+	public static Mosaic loadScaledImage(InputStream in, int width, int height) throws IOException {
+		return loadScaledImage(ImageIO.read(in), width, height);
 	}
 
 	public static Mosaic fromString(String str) {
@@ -65,8 +64,8 @@ public class Mosaic implements Iterable<Clue> {
 		return fromClues(str);
 	}
 
-	public static Mosaic loadString(URI uri) throws IOException {
-		Scanner scn = new Scanner(uri.toURL().openStream());
+	public static Mosaic loadString(InputStream in) throws IOException {
+		Scanner scn = new Scanner(in);
 		String content = scn.useDelimiter("\\Z").next();
 		scn.close();
 
@@ -88,8 +87,8 @@ public class Mosaic implements Iterable<Clue> {
 		return mosaic;
 	}
 
-	public static Mosaic loadClues(URI uri) throws IOException {
-		Scanner scn = new Scanner(uri.toURL().openStream());
+	public static Mosaic loadClues(InputStream in) throws IOException {
+		Scanner scn = new Scanner(in);
 		String content = scn.useDelimiter("\\Z").next();
 		scn.close();
 
@@ -115,8 +114,8 @@ public class Mosaic implements Iterable<Clue> {
 		return mosaic;
 	}
 
-	public static Mosaic loadCSV(URI uri) throws IOException {
-		Scanner scn = new Scanner(uri.toURL().openStream());
+	public static Mosaic loadCSV(InputStream in) throws IOException {
+		Scanner scn = new Scanner(in);
 		String content = scn.useDelimiter("\\Z").next();
 		scn.close();
 

@@ -1,7 +1,7 @@
 package com.stackexchange.puzzling.user.mordechai.mosaic.fx;
 
 import java.io.File;
-import java.net.URI;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -50,14 +50,12 @@ public class Top extends BorderPane {
 		List<MenuItem> items = new ArrayList<MenuItem>();
 
 		for (int i = 1; i <= 12; i++) {
-			URI uri = URI.create(getClass().getResource("resources/presets/Preset " + i + ".csv").toExternalForm());
-			String name = uri.toString();
-			name = name.substring(name.lastIndexOf("/") + 1);
-			name = name.replace("%20", " ");
-			MenuItem item = new MenuItem(name.substring(0, name.lastIndexOf(".")));
+			InputStream in = getClass().getResourceAsStream("resources/presets/Preset " + i + ".csv");
+			String name = "Preset " + i;
+			MenuItem item = new MenuItem(name);
 			items.add(item);
 			item.setOnAction(evt -> {
-				Loader.loadString(uri);
+				Loader.loadString(in);
 			});
 		}
 

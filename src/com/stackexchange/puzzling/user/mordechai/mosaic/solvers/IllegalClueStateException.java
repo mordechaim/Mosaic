@@ -11,7 +11,7 @@ public class IllegalClueStateException extends IllegalStateException {
 	private final Mosaic mosaic;
 	
 	public IllegalClueStateException(Mosaic mosaic, int x, int y) {
-		super("x: " + x + ", y: " + y);
+		super("x,y: " + x + "," + y);
 		this.mosaic = mosaic;
 		this.x = x;
 		this.y = y;

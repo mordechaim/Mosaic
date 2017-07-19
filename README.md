@@ -1,3 +1,5 @@
+**PLEASE NOTE: This document is outdated. New commits changed the way you use the API, and a complete JavaFX front-end has been added.**
+
 **Mosaic** &nbsp; &mdash; &nbsp; 
 Also known as:
 ArtMosaico, Count and Darken, Cuenta Y Sombrea, Fill-a-Pix, Fill-In, Komsu Karala, Magipic, Majipiku, Mosaico, Mosaik, Mozaiek, Nampre Puzzle, Nurie-Puzzle, Oekaki-Pix, Voisimage.

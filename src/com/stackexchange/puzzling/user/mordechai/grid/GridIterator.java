@@ -28,11 +28,11 @@ public class GridIterator<T> implements Iterator<T> {
 	}
 
 	public boolean hasRight() {
-		return x < grid.getWidth() - 1;
+		return x < grid.width() - 1;
 	}
 
 	public boolean hasDown() {
-		return y < grid.getHeight() - 1;
+		return y < grid.height() - 1;
 	}
 
 	public boolean hasLeft() {
@@ -166,7 +166,7 @@ public class GridIterator<T> implements Iterator<T> {
 		if (!hasPreviousRow())
 			throw new NoSuchElementException();
 
-		x = grid.getWidth();
+		x = grid.width();
 		y--;
 
 		return get();
@@ -196,14 +196,14 @@ public class GridIterator<T> implements Iterator<T> {
 		if (!hasPreviousColumn())
 			throw new NoSuchElementException();
 
-		y = grid.getHeight();
+		y = grid.height();
 		x--;
 
 		return get();
 	}
 
 	public T rowEnd() {
-		x = grid.getWidth();
+		x = grid.width();
 		return get();
 	}
 
@@ -213,7 +213,7 @@ public class GridIterator<T> implements Iterator<T> {
 	}
 
 	public T columnEnd() {
-		y = grid.getHeight();
+		y = grid.height();
 		return get();
 	}
 
@@ -223,9 +223,9 @@ public class GridIterator<T> implements Iterator<T> {
 	}
 
 	public T jump(int x, int y) {
-		if (x < 0 || x >= grid.getWidth())
+		if (x < 0 || x >= grid.width())
 			throw new IndexOutOfBoundsException("x: " + x);
-		if (y < 0 || y >= grid.getHeight())
+		if (y < 0 || y >= grid.height())
 			throw new IndexOutOfBoundsException("y: " + y);
 
 		this.x = x;
@@ -242,11 +242,11 @@ public class GridIterator<T> implements Iterator<T> {
 		return jump(x, this.y);
 	}
 
-	public int getX() {
+	public int x() {
 		return x;
 	}
 
-	public int getY() {
+	public int y() {
 		return y;
 	}
 
@@ -272,6 +272,12 @@ public class GridIterator<T> implements Iterator<T> {
 			if (hasUp())
 				return up();
 			return previousColumnEnd();
+		}
+	}
+	
+	public void forEachRemaining(CellLocation<T> cell) {
+		while(hasNext()) {
+			cell.accept(get(), x(), y());
 		}
 	}
 

@@ -19,7 +19,7 @@ public class ColumnList<T> extends AbstractList<T> {
 
 	@Override
 	public int size() {
-		return grid.getHeight();
+		return grid.height();
 	}
 
 	@Override
@@ -31,13 +31,13 @@ public class ColumnList<T> extends AbstractList<T> {
 	}
 
 	public void clear() {
-		for (int i = 0; i < grid.getWidth(); i++) {
+		for (int i = 0; i < grid.width(); i++) {
 			set(i, null);
 		}
 	}
 
 	public boolean isEmpty() {
-		for (int i = 0; i < grid.getWidth(); i++) {
+		for (int i = 0; i < grid.width(); i++) {
 			if(get(i) != null)
 				return false;
 		}

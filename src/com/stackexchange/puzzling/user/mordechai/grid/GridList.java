@@ -21,7 +21,7 @@ public class GridList<T> extends AbstractList<T> {
 
 	@Override
 	public int size() {
-		return grid.getLength();
+		return grid.length();
 	}
 	
 	@Override

@@ -20,13 +20,14 @@ import javafx.scene.SnapshotParameters;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.image.Image;
+import javafx.scene.image.PixelWriter;
+import javafx.scene.image.WritableImage;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.TransferMode;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
@@ -48,7 +49,7 @@ public class FXApplication extends Application {
 		app = this;
 
 		primaryStage.getIcons()
-				.add(new Image(getClass().getResource("resources/mosaic logo square.jpg").toExternalForm()));
+				.add(new Image(getClass().getResource("resources/Mosaic.png").toExternalForm()));
 
 		Top top = new Top();
 		Center center = new Center();
@@ -143,11 +144,24 @@ public class FXApplication extends Application {
 			c.putString(global.getMosaicPane().getMosaic().toCSV());
 			db.setContent(c);
 
-			Text txt = new Text("\u21f1  Export");
+			Text txt = new Text(" \u21f1  Export ");
 			txt.setFill(Color.BLUE);
 
 			SnapshotParameters params = new SnapshotParameters();
-			db.setDragView(txt.snapshot(params, null), -5, -5);
+			params.setFill(Color.WHITE);
+			WritableImage img = txt.snapshot(params, null);
+
+			PixelWriter writer = img.getPixelWriter();
+			for (int i = 0; i < img.getWidth(); i++) {
+				writer.setColor(i, 0, Color.BLUE);
+				writer.setColor(i, (int) img.getHeight() - 1, Color.BLUE);
+			}
+			for (int i = 0; i < img.getHeight(); i++) {
+				writer.setColor(0, i, Color.BLUE);
+				writer.setColor((int) img.getWidth() - 1, i, Color.BLUE);
+			}
+
+			db.setDragView(img, -5, -5);
 
 			draggingOut = true;
 		});
@@ -200,12 +214,9 @@ public class FXApplication extends Application {
 			app.getHostServices().showDocument(url);
 	}
 
-	private static ServerSocket ss;
-
 	public static void main(String[] args) {
 		Thread singleInstance = new Thread(() -> {
-			try {
-				ss = new ServerSocket(9090, 0, InetAddress.getByName(null));
+			try (ServerSocket ss = new ServerSocket(9090, 0, InetAddress.getByName(null))) {
 				while (true) {
 					Socket socket = ss.accept();
 					BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
@@ -222,21 +233,11 @@ public class FXApplication extends Application {
 			} catch (IOException e) {
 				if (args.length > 0) {
 					// pass over to running instance
-					try {
-						Socket socket = new Socket("localhost", 9090);
-						PrintWriter out = new PrintWriter(new OutputStreamWriter(socket.getOutputStream()));
+					try (Socket socket = new Socket("localhost", 9090);
+							PrintWriter out = new PrintWriter(new OutputStreamWriter(socket.getOutputStream()))) {
 						out.println(args[0]);
-						out.close();
-						socket.close();
 					} catch (IOException ioe) {
 						e.printStackTrace();
-					}
-				}
-
-				if (ss != null && !ss.isClosed()) {
-					try {
-						ss.close();
-					} catch (IOException e1) {
 					}
 				}
 				System.exit(0);
@@ -246,12 +247,5 @@ public class FXApplication extends Application {
 		singleInstance.start();
 
 		launch(args);
-
-		if (ss != null && !ss.isClosed()) {
-			try {
-				ss.close();
-			} catch (IOException e) {
-			}
-		}
 	}
 }

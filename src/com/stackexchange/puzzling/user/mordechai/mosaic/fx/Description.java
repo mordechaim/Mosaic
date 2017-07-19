@@ -17,8 +17,10 @@ public class Description extends BorderPane {
 	private static final String BULLET = "\n\t\u2022 ";
 
 	public Description() {
-		ImageView logo = new ImageView(getClass().getResource("resources/mosaic logo square.jpg").toExternalForm());
+		ImageView logo = new ImageView(getClass().getResource("resources/Mosaic.png").toExternalForm());
 		ImageView github = new ImageView(getClass().getResource("resources/GitHub-Mark-32px.png").toExternalForm());
+		logo.setFitWidth(75);
+		logo.setFitHeight(75);
 		github.setFitWidth(25);
 		github.setFitHeight(25);
 		Hyperlink ghLink = link("Github", "https://github.com/MouseEvent/Mosaic");

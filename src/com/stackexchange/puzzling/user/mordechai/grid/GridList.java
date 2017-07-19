@@ -1,10 +1,6 @@
 package com.stackexchange.puzzling.user.mordechai.grid;
 
 import java.util.AbstractList;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.List;
-import java.util.ListIterator;
 
 public class GridList<T> extends AbstractList<T> {
 	
@@ -32,10 +28,12 @@ public class GridList<T> extends AbstractList<T> {
 		return old;
 	}
 	
+	@Override
 	public void clear() {
 		grid.clear();
 	}
 	
+	@Override
 	public boolean isEmpty() {
 		return grid.isEmpty();
 	}

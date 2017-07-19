@@ -62,6 +62,7 @@ public class Clue {
 		isPixel = b;
 	}
 
+	@Override
 	public String toString() {
 		return toString(true, true, true);
 	}

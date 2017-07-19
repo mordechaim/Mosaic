@@ -1,13 +1,14 @@
 package com.stackexchange.puzzling.user.mordechai.grid;
 
+import java.io.IOException;
+import java.io.Reader;
+import java.io.StringReader;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
-
-import com.stackexchange.puzzling.user.mordechai.mosaic.Clue;
-import com.stackexchange.puzzling.user.mordechai.mosaic.fx.ClueCell;
 
 public class Grid<T> implements Iterable<T> {
 
@@ -30,8 +31,8 @@ public class Grid<T> implements Iterable<T> {
 		this.width = width;
 		this.height = height;
 
-		rowLists = (RowList<T>[]) new RowList[height];
-		columnLists = (ColumnList<T>[]) new ColumnList[width];
+		rowLists = new RowList[height];
+		columnLists = new ColumnList[width];
 	}
 
 	public Grid(int width, int height) {
@@ -369,7 +370,17 @@ public class Grid<T> implements Iterable<T> {
 
 	@Override
 	public String toString() {
-		return toGridString(t -> t == null ? "null" : t.toString(), ",");
+		return toGridString(t -> {
+			if (t == null)
+				return "null";
+
+			String str = t.toString().replace("\"", "\"\"");
+			if (str.contains(",")) {
+				str = "\"" + str + "\"";
+			}
+
+			return str;
+		}, ",");
 	}
 
 	public static <E> Grid<E> fromString(String str, String delimiter, CellMapper<E> mapper) {
@@ -399,8 +410,93 @@ public class Grid<T> implements Iterable<T> {
 		return grid;
 	}
 
+	public static <E> Grid<E> fromString(String str, LineTokenizer tokenizer, CellMapper<E> mapper) {
+		String lines[] = str.split("\\r?\\n", -1);
+
+		if (lines.length == 0)
+			return null;
+
+		Grid<E> grid = null;
+
+		List<String> tokens;
+		for (int y = 0; y < lines.length; y++) {
+			tokens = tokenizer.tokenize(lines[y]);
+			for (int x = 0; x < tokens.size(); x++) {
+				if (grid == null) {
+					grid = new Grid<>(tokens.size(), lines.length);
+				} else if (tokens.size() > grid.width()) {
+					Grid<E> newGrid = new Grid<>(tokens.size(), lines.length);
+					grid.copyTo(newGrid);
+
+					grid = newGrid;
+				}
+				grid.set(x, y, mapper.map(x, y, tokens.get(x)));
+			}
+		}
+
+		return grid;
+	}
+
+	/*
+	 * https://stackoverflow.com/a/13655640/1751640
+	 */
+	private static List<String> parseLineAsCSV(String str) {
+		
+		try (Reader r = new StringReader(str)) {
+
+			int ch = r.read();
+			while (ch == '\r') {
+				// ignore linefeed chars wherever, particularly just before end of file
+				ch = r.read();
+			}
+			if (ch < 0) {
+				return null;
+			}
+			List<String> store = new ArrayList<String>();
+			StringBuilder curVal = new StringBuilder();
+			boolean inquotes = false;
+			boolean started = false;
+			while (ch >= 0) {
+				if (inquotes) {
+					started = true;
+					if (ch == '\"') {
+						inquotes = false;
+					} else {
+						curVal.append((char) ch);
+					}
+				} else {
+					if (ch == '\"') {
+						inquotes = true;
+						if (started) {
+							// if this is the second quote in a value, add a quote
+							// this is for the double quote in the middle of a value
+							curVal.append('\"');
+						}
+					} else if (ch == ',') {
+						store.add(curVal.toString());
+						curVal.setLength(0);
+						started = false;
+					} else if (ch == '\r') {
+						// ignore LF characters
+					} else if (ch == '\n') {
+						// end of a line, break out
+						break;
+					} else {
+						curVal.append((char) ch);
+					}
+				}
+				ch = r.read();
+			}
+			store.add(curVal.toString());
+			return store;
+			
+		} catch (IOException e) {
+			return Collections.emptyList();
+		}
+	}
+
 	public static <E> Grid<E> fromString(String str, CellMapper<E> mapper) {
-		return fromString(str, "[\t,]", mapper);
+		return fromString(str, Grid::parseLineAsCSV, mapper);
 	}
 
 	public void copyTo(Grid<? super T> other, int xOffset, int yOffset) {

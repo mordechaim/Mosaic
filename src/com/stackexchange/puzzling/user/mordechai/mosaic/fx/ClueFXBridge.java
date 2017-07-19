@@ -41,6 +41,7 @@ public class ClueFXBridge extends Clue {
 		isPixelProperty = new ReadOnlyBooleanWrapper(this, "isPixel", false);
 	}
 
+	@Override
 	public ClueFXBridge copy() {
 		return new ClueFXBridge(this);
 	}

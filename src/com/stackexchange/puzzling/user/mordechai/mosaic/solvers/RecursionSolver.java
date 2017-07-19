@@ -533,6 +533,7 @@ public class RecursionSolver extends AbstractSolveAlgorithm {
 			this.y = y;
 		}
 
+		@Override
 		public String toString() {
 			return x + ", " + y;
 		}

@@ -1,5 +1,9 @@
 package com.stackexchange.puzzling.user.mordechai.mosaic.solvers;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
@@ -12,6 +16,9 @@ public abstract class AbstractSolveAlgorithm implements SolveAlgorithm {
 
 	private Mosaic mosaic;
 	private AtomicReference<State> state;
+
+	private Map<State, List<Consumer<SolveAlgorithm>>> singleStateListeners;
+	private List<Consumer<SolveAlgorithm>> allStateListeners;
 
 	private Consumer<SolveAlgorithm> startHandler;
 	private Consumer<SolveAlgorithm> cancelHandler;
@@ -29,12 +36,13 @@ public abstract class AbstractSolveAlgorithm implements SolveAlgorithm {
 		this.mosaic = mosaic;
 
 		if (checkNoClue) {
-			GridIterator<Clue> gi = getMosaic().getGrid().iterator();
+			GridIterator<Clue> gi = getMosaic().grid().iterator();
 			while (gi.hasNext()) {
 				gi.next();
-				if (getMosaic().getSurroundingCells(gi.getX(), gi.getY()).count(clue -> clue.getClue() >= 0) == 0) {
+				if (getMosaic().grid().getSurroundingCells(gi.x(), gi.y())
+						.count(clue -> clue.getClue() >= 0) == 0) {
 					setState(FAILED);
-					throw new NoClueException(getMosaic(), gi.getX(), gi.getY());
+					throw new NoClueException(getMosaic(), gi.x(), gi.y());
 				}
 			}
 		}
@@ -57,6 +65,8 @@ public abstract class AbstractSolveAlgorithm implements SolveAlgorithm {
 
 		state.set(newState);
 
+		fire(allStateListeners);
+		fire(singleStateListeners, newState);
 		fire(getOnStateChange());
 
 		if (newState instanceof StandardState) {
@@ -89,6 +99,54 @@ public abstract class AbstractSolveAlgorithm implements SolveAlgorithm {
 			default:
 			}
 		}
+	}
+
+	@Override
+	public void addStateListener(State state, Consumer<SolveAlgorithm> handler) {
+		if (singleStateListeners == null) {
+			singleStateListeners = new HashMap<>();
+		}
+
+		List<Consumer<SolveAlgorithm>> listeners = singleStateListeners.get(state);
+
+		if (listeners == null) {
+			listeners = new ArrayList<>();
+			singleStateListeners.put(state, listeners);
+		}
+
+		listeners.add(handler);
+	}
+
+	@Override
+	public void removeStateListener(State state, Consumer<SolveAlgorithm> handler) {
+		if (singleStateListeners == null)
+			return;
+
+		List<Consumer<SolveAlgorithm>> listeners = singleStateListeners.get(state);
+		if (listeners == null)
+			return;
+
+		listeners.remove(handler);
+
+		if (listeners.isEmpty())
+			singleStateListeners.remove(state);
+
+	}
+
+	@Override
+	public void addStateListener(Consumer<SolveAlgorithm> handler) {
+		if (allStateListeners == null)
+			allStateListeners = new ArrayList<>();
+
+		allStateListeners.add(handler);
+	}
+
+	@Override
+	public void removeStateListener(Consumer<SolveAlgorithm> handler) {
+		if (allStateListeners == null)
+			return;
+
+		allStateListeners.remove(handler);
 	}
 
 	@Override
@@ -164,7 +222,7 @@ public abstract class AbstractSolveAlgorithm implements SolveAlgorithm {
 	public long elapsed() {
 		if (startTime == 0)
 			return 0;
-		
+
 		if (endTime == 0)
 			return System.currentTimeMillis() - startTime;
 
@@ -172,10 +230,18 @@ public abstract class AbstractSolveAlgorithm implements SolveAlgorithm {
 	}
 
 	private void fire(Consumer<SolveAlgorithm> handler) {
-		if (handler == null)
-			return;
+		if (handler != null)
+			handler.accept(this);
+	}
 
-		handler.accept(this);
+	private void fire(List<Consumer<SolveAlgorithm>> listeners) {
+		if (listeners != null)
+			listeners.forEach(h -> fire(h));
+	}
+
+	private void fire(Map<State, List<Consumer<SolveAlgorithm>>> map, State state) {
+		if (map != null)
+			fire(map.get(state));
 	}
 
 	protected void startTimer() {

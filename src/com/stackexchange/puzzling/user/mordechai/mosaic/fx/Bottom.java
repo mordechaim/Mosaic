@@ -1,16 +1,8 @@
 package com.stackexchange.puzzling.user.mordechai.mosaic.fx;
 
-import javafx.scene.Group;
-import javafx.scene.Node;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.Tooltip;
-import javafx.scene.layout.StackPane;
-import javafx.scene.text.Font;
-import javafx.scene.text.FontPosture;
-import javafx.scene.text.Text;
-import javafx.scene.text.TextAlignment;
-import javafx.scene.text.TextFlow;
 
 public class Bottom extends TabPane {
 
@@ -36,6 +28,9 @@ public class Bottom extends TabPane {
 		solveTab.disableProperty().bind(global.generatingProperty());
 
 		getSelectionModel().selectedItemProperty().addListener((obs, ov, nv) -> {
+			if(global.getMosaicPane() == null)
+				return;
+			
 			if (ov == editTab) {
 				editPane.liftToggles();
 			} else if (ov == generateTab) {
@@ -47,6 +42,8 @@ public class Bottom extends TabPane {
 			if (nv == generateTab) {
 				global.getMosaicPane().setEditor(EditorType.CLUE);
 			}
+
+			global.getMosaicPane().setMouseTransparent(nv == generateTab);
 		});
 
 		getTabs().addAll(editTab, generateTab, solveTab);

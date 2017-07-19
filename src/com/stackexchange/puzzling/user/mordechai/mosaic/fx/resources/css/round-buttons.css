@@ -1,0 +1,16 @@
+.button, .toggle-button {
+	-fx-pref-width: 75;
+}
+
+.left {
+	-fx-background-radius: 10 0 0 10;
+}
+
+.center {
+	-fx-background-radius: 0;
+}
+
+.right {
+	-fx-background-radius: 0 10 10 0;
+}
+

@@ -1,0 +1,17 @@
+.description {
+	-fx-font-family: "SansSerif";
+	-fx-font-size: 15;
+}
+
+.description .bold {
+	-fx-font-weight: bold;
+}
+
+.hyperlink {
+	-fx-border-color: transparent;
+	-fx-padding: 0;
+}
+
+.hyperlink:visited {
+	-fx-text-fill: green;
+}

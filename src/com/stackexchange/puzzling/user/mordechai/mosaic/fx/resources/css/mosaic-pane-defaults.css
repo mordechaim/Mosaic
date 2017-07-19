@@ -1,0 +1,44 @@
+.mosaic-pane .grid {
+	-fx-vgap: 1;
+	-fx-hgap: 1;
+	-fx-padding: 1;
+}
+
+.mosaic-pane .background {
+	-fx-fill: lightgray;
+}
+
+.mosaic-pane .clue-pane {
+	-fx-background-color: white;
+	-fx-border-color: white;
+	-fx-pref-width: 18.0;
+	-fx-pref-height: 18.0;
+}
+
+.mosaic-pane .clue-pane:is-pixel {
+	-fx-background-color: lightgreen;
+	-fx-border-color: lightgreen;
+}
+
+.mosaic-pane .clue-pane:filled {
+	-fx-background-color: gray;
+	-fx-border-color: gray;
+}
+
+.mosaic-pane .clue-pane:highlighted {
+	-fx-background-color: yellow;
+	-fx-border-color: yellow;
+}
+
+.mosaic-pane .clue-pane:error {
+	-fx-background-color: red;
+	-fx-border-color: red;
+}
+
+.mosaic-pane .clue-pane:focused {
+	-fx-border-color: blue;
+}
+
+.mosaic-pane .clue-pane .x {
+	-fx-text-fill: orangered;
+}

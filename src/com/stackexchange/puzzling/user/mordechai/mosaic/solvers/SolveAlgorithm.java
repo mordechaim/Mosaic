@@ -17,7 +17,15 @@ public interface SolveAlgorithm {
 	State getState();
 	
 	Report getReport();
-
+	
+	void addStateListener(State state, Consumer<SolveAlgorithm> handler);
+	
+	void removeStateListener(State state, Consumer<SolveAlgorithm> handler);
+	
+	void addStateListener(Consumer<SolveAlgorithm> handler);
+	
+	void removeStateListener(Consumer<SolveAlgorithm> handler);
+ 
 	void onStart(Consumer<SolveAlgorithm> handler);
 
 	Consumer<SolveAlgorithm> getOnStart();

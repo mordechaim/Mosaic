@@ -214,11 +214,12 @@ public class Loader { // FIXME use threads for loading and set off-canvas-proces
 		boxes.setSpacing(10);
 		boxes.setPadding(new Insets(15));
 
-		Util.createDialog(boxes, "Create New Mosaic...", () -> {
-			Mosaic m = new Mosaic(width.getValue(), height.getValue());
-			MosaicPane mp = new MosaicPane(m, true);
-			global.setMosaicPane(mp);
-		}, ButtonType.OK, ButtonType.CANCEL);
+		Util.createDialog(boxes, "Create New Mosaic...", ButtonType.OK, ButtonType.CANCEL)
+				.filter(bt -> bt == ButtonType.OK).ifPresent(bt -> {
+					Mosaic m = new Mosaic(width.getValue(), height.getValue());
+					MosaicPane mp = new MosaicPane(m, true);
+					global.setMosaicPane(mp);
+				});
 	}
 
 	public static void saveString(File file) {
@@ -242,18 +243,18 @@ public class Loader { // FIXME use threads for loading and set off-canvas-proces
 		vbox.getChildren().addAll(text, box);
 		vbox.setPadding(new Insets(15));
 
-		Util.createDialog(vbox, "Export Attributes...", () -> {
-			try (PrintWriter out = new PrintWriter(new FileWriter(file))) {
-				out.print(global.getMosaicPane().getMosaic().toCSV(fill.isSelected(), clue.isSelected(),
-						image.isSelected()));
-			} catch (IOException e) {
-				Alert alert = new Alert(AlertType.ERROR);
-				alert.setHeaderText("Cannot save to file  " + file.getName());
-				alert.setTitle("Error");
-				alert.showAndWait();
-			}
-		}, ButtonType.OK, ButtonType.CANCEL);
-
+		Util.createDialog(vbox, "Export Attributes...", ButtonType.OK, ButtonType.CANCEL)
+				.filter(bt -> bt == ButtonType.OK).ifPresent(bt -> {
+					try (PrintWriter out = new PrintWriter(new FileWriter(file))) {
+						out.print(global.getMosaicPane().getMosaic().toCSV(fill.isSelected(), clue.isSelected(),
+								image.isSelected()));
+					} catch (IOException e) {
+						Alert alert = new Alert(AlertType.ERROR);
+						alert.setHeaderText("Cannot save to file  " + file.getName());
+						alert.setTitle("Error");
+						alert.showAndWait();
+					}
+				});
 	}
 
 	public static void saveImage(File file) {
@@ -281,7 +282,7 @@ public class Loader { // FIXME use threads for loading and set off-canvas-proces
 
 		global.setMosaicPane(new MosaicPane(mosaic, true));
 	}
-	
+
 	public static void loadString(InputStream in) {
 		Mosaic mosaic = null;
 		try {
@@ -313,7 +314,7 @@ public class Loader { // FIXME use threads for loading and set off-canvas-proces
 
 		loadImage(image);
 	}
-	
+
 	public static void loadImage(InputStream in) {
 		Image image = new Image(in);
 
@@ -368,14 +369,15 @@ public class Loader { // FIXME use threads for loading and set off-canvas-proces
 		vbox.getChildren().addAll(imageView, widthBox, heightBox);
 		vbox.setPadding(new Insets(15));
 
-		Util.createDialog(vbox, "Import Image...", () -> {
-			Mosaic m = Mosaic.loadScaledImage(SwingFXUtils.fromFXImage(image, null), width.getValue(),
-					height.getValue());
-			MosaicPane mp = new MosaicPane(m, true);
-			mp.setEditor(EditorType.PIXEL);
+		Util.createDialog(vbox, "Import Image...", ButtonType.OK, ButtonType.CANCEL).filter(bt -> bt == ButtonType.OK)
+				.ifPresent(bt -> {
+					Mosaic m = Mosaic.loadScaledImage(SwingFXUtils.fromFXImage(image, null), width.getValue(),
+							height.getValue());
+					MosaicPane mp = new MosaicPane(m, true);
+					mp.setEditor(EditorType.PIXEL);
 
-			global.setMosaicPane(mp);
-		}, ButtonType.OK, ButtonType.CANCEL);
+					global.setMosaicPane(mp);
+				});
 	}
 
 	private static Image blackAndWhite(Image image, int width, int height) {

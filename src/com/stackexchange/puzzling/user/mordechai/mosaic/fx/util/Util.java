@@ -28,7 +28,8 @@ public class Util {
 	private Util() {
 	}
 
-	public static void createDialog(Node content, String title, Runnable defaultAction, ButtonType... buttonTypes) {
+	public static Optional<ButtonType> createDialog(Node content, String title, ButtonType... buttonTypes) {
+		
 		Stage dialog = new Stage();
 		dialog.initModality(Modality.APPLICATION_MODAL);
 		dialog.setAlwaysOnTop(true);
@@ -36,22 +37,17 @@ public class Util {
 		dialog.setTitle(title);
 
 		List<Button> buttons = new ArrayList<>(buttonTypes.length);
+		ButtonType[] response = new ButtonType[1];
 
 		for (ButtonType type : buttonTypes) {
 			Button b = new Button(type.getText());
 			b.setDefaultButton(type.getButtonData().isDefaultButton());
 			b.setCancelButton(type.getButtonData().isCancelButton());
 
-			if (b.isDefaultButton()) {
-				b.setOnAction(evt -> {
-					defaultAction.run();
-
-					dialog.close();
-				});
-			}
-			if (b.isCancelButton()) {
-				b.setOnAction(evt -> dialog.close());
-			}
+			b.setOnAction(evt -> {
+				response[0] = type;
+				dialog.close();
+			});
 
 			buttons.add(b);
 		}
@@ -68,11 +64,13 @@ public class Util {
 		Scene scene = new Scene(new StackPane(vbox));
 		dialog.setScene(scene);
 
-		dialog.show();
-
 		if (buttons.size() > 0) {
-			buttons.get(0).requestFocus();
+			dialog.setOnShown(evt -> buttons.get(0).requestFocus());
 		}
+
+		dialog.showAndWait();
+
+		return Optional.ofNullable(response[0]);
 	}
 
 	/*

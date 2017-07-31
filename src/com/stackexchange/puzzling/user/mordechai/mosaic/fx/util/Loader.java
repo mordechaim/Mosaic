@@ -11,7 +11,6 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -302,17 +301,20 @@ public class Loader { // FIXME use threads for loading and set off-canvas-proces
 	}
 
 	public static void loadImage(File f) {
-		Image image = new Image(f.getAbsolutePath());
+		try(InputStream in = new FileInputStream(f)) {
+			Image image = new Image(in);
+			
+			if (image.isError()) {
+				throw image.getException();
+			}
 
-		if (image.isError()) {
+			loadImage(image);
+		} catch (Exception e) {
 			Alert alert = new Alert(AlertType.ERROR);
 			alert.setHeaderText("Cannot open image " + f.getName());
 			alert.setTitle("Error");
 			alert.showAndWait();
-			return;
 		}
-
-		loadImage(image);
 	}
 
 	public static void loadImage(InputStream in) {
@@ -377,7 +379,7 @@ public class Loader { // FIXME use threads for loading and set off-canvas-proces
 					mp.setEditor(EditorType.PIXEL);
 
 					global.setMosaicPane(mp);
-				});
+			});
 	}
 
 	private static Image blackAndWhite(Image image, int width, int height) {

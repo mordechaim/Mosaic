@@ -56,7 +56,7 @@ public class Util {
 		buttonBox.getChildren().addAll(buttons);
 		buttonBox.setAlignment(Pos.CENTER);
 		buttonBox.setSpacing(10);
-		buttonBox.setPadding(new Insets(10, 0, 0, 0));
+		buttonBox.setPadding(new Insets(10, 0, 10, 0));
 
 		VBox vbox = new VBox();
 		vbox.getChildren().addAll(content, new Separator(), buttonBox);

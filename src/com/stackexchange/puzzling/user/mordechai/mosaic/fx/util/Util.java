@@ -32,7 +32,6 @@ public class Util {
 		
 		Stage dialog = new Stage();
 		dialog.initModality(Modality.APPLICATION_MODAL);
-		dialog.setAlwaysOnTop(true);
 		dialog.setResizable(false);
 		dialog.setTitle(title);
 

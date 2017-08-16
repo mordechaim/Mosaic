@@ -23,7 +23,7 @@ public class Description extends BorderPane {
 		logo.setFitHeight(75);
 		github.setFitWidth(25);
 		github.setFitHeight(25);
-		Hyperlink ghLink = link("Github", "https://github.com/MouseEvent/Mosaic");
+		Hyperlink ghLink = link("Github", "https://github.com/mordechaim/Mosaic");
 		ghLink.setGraphic(github);
 
 		TextFlow flow = new TextFlow();

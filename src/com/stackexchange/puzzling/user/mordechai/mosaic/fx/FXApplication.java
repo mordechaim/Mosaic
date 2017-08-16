@@ -95,8 +95,11 @@ public class FXApplication extends Application {
 			}
 		});
 
-		if (!getParameters().getUnnamed().isEmpty()) {
-			Loader.load(new File(getParameters().getUnnamed().get(0)));
+		if (!getParameters().getRaw().isEmpty()) {
+			for(String param : getParameters().getRaw()) {
+				if(!param.startsWith("-")) // option, ignore
+					Loader.load(new File(param));
+			}
 		}
 
 		Preferences prefs = Preferences.userNodeForPackage(FXApplication.class);

@@ -48,8 +48,7 @@ public class FXApplication extends Application {
 	public void start(Stage primaryStage) {
 		app = this;
 
-		primaryStage.getIcons()
-				.add(new Image(getClass().getResource("resources/Mosaic.png").toExternalForm()));
+		primaryStage.getIcons().add(new Image(getClass().getResource("resources/Mosaic.png").toExternalForm()));
 
 		Top top = new Top();
 		Center center = new Center();
@@ -95,10 +94,10 @@ public class FXApplication extends Application {
 			}
 		});
 
-		if (!getParameters().getRaw().isEmpty()) {
-			for(String param : getParameters().getRaw()) {
-				if(!param.startsWith("-")) // option, ignore
-					Loader.load(new File(param));
+		for (String param : getParameters().getRaw()) {
+			if (!param.startsWith("-")) { // option, ignore
+				Loader.load(new File(param));
+				break;
 			}
 		}
 
